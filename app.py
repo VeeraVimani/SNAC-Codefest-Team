@@ -1,19 +1,13 @@
 import customtkinter as ctk
-from auth import verify_login
+from screens import splash_screen
 
 ctk.set_appearance_mode("dark")
-ctk.set_default_colour_theme("blue")
+ctk.set_default_color_theme("blue")
 
-class SnacWalletApp(ctk.CTk):
-    def _init_(self):
-        def _init_ (self):
-            super()._init_()
-            self.title("Snac Wallet")
-            self.geometry("400x300")
-            self.show_lpgin()
+app = ctk.CTk()
+app.geometry("900x1000")
+app.title("SNAC Wallet")
 
-#login screen
-def show login(self):
-self.username_entry = ctk.CTkEntry(self, placeholder_text="Username")
-self.password_entry = ctk.CTkEntry(self, placeholder_text="Password", show="
-                                   
+splash_screen(app)
+
+app.mainloop()
