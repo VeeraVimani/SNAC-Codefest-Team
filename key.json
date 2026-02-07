@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "snac-codefest-team",
+  "private_key_id": "81541e467477be68754ecb394b796ab5675dcd8f",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC7EhfXH99W6ZlV\nSo+DDiKayv3s6H5MsnOQ/hpi/pjsx1vA+5vpj/6vZ2E9SSZFzIVHqbg82HOYj7v3\nl8997hv4G/kKowgfa4yrMJmfbjoIu8JPbALYXItvr4Zgy1hSTb42GiEpZrwLqcEz\nHIpYtPmEmCJOS0RHoAiNwwDi9SQ8CMYCErVjaaepPpKXcCEU4FpejBKjju+MPSUP\nLRI4/I98Bjruw7GStFtFRXj/xoEFPL8QBbrKpY9cBLUyJbTzOW62w9CFaPzoGdXU\nNeXiQ7tu4ZQmhC+g+oAEkxmZLJAg1nA6v+4tjekfg05t7Kn9o6hPjC0Ms+pCxHLp\nSZMhOqubAgMBAAECggEASZMGpFnJPcYXQ9fU1L8I9idzMiuIjQK8eCCwYRHwNGP+\nHsr2mahEC1mWAYQVFOuo2bQTHX8mC7EwRONEvKsa/fyGeNwBFFZ411WAfhdcpNWv\nyQvanJzdTFpU+BnRzWD9OAsT0tQwjkfAECmf8d6PqkopZ/CrVJ5I7vRsk1bF3wQJ\nK7MurgVZJT3fBYaah1mw/LOR3H5aI3Z3lMhussvE+HP2DrofARl6fQn4KE2oCnMd\n0/x+4UFn6Pb7lXxoHu4y9CTB0N015x452F91JDY+xuogUWyjSKbWwza7w6jqqxOp\nOCzKSLdalEYh4TGTHm4KlCvD+YgZgGCUz2hFxJjH2QKBgQD0MpQz5UV6YTHqXZbY\nQwV5faCdaTkZ1BLok+PounRoHeW/nMsyByocxQfURsVLMcKkWy0KG/QqbnWc3v+p\n9NlwuuFHMxEtKxXwUxC8KWyHbqDMQxObfzLMwotOH++9IjiU550ZoNUP5Ykbl/Gk\nqpozzzcCvPesEQg+tR3jlfvyqQKBgQDEHLEAOM+zCJquTORX1RDXEmeqcUL5C0i7\nVFj72tgl0Ousc5Ve15GoTjB4xrZt8f8FNTF+IusWSxgEEGLqIW0tihuYfInZy810\ngM83j3r16j6xW33/4qbRBz+bf6CB7i5Wmez4TK9H+x29B7wjhbU8wuSXL+XY7wbT\nUrSa9hoaowKBgCeVFz6+OB/ZJ10k5HGTk4yY13MMfkv4e0QlzLiJmJrT1czUXn9y\nd9oH+ffnrM0+eJ1phghwdYh3NStDXk+vN5u1PxTqaytWI407+ad2U3g0b24MpV38\nJUDZe/ki5hpTNLa2QFnKHx8fhrTpUSru2GXzfag89yx16k83zmt4gUlZAoGBAIGn\ndl3vMWHsDlet/kkTVE7cnCzTNLPyAePXn/zicoSN20HoKJjLbEEZcHJo7bNCipem\n01HRRBs5Cmelbb/c2ZGB/TyTGZAkbXDYuCbDdUef1lLraiICdsc7Q5JKjpNYJMqc\neU6vZDLyknam5nuVqnzBXN+Xix4g6SJNS5onmpqBAoGACqcp4jdFcL8eqdP7JiNC\nSL6wANd1NX66DgbTMBplaLp7xoJTa+SrRe/SXILdNCwneaqV8KSxBW47Od66pw79\nbEaOBiGGBkxtXZIy3SYXCRLVD86zVy0W0dPVTDwKI6UNDmi1WDU0kpmWi3CxEpbi\nz4Fgx2yd12mTQKxM5b0vDMU=\n-----END PRIVATE KEY-----\n",
+  "client_email": "firebase-adminsdk-fbsvc@snac-codefest-team.iam.gserviceaccount.com",
+  "client_id": "104085211142022369411",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-fbsvc%40snac-codefest-team.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
