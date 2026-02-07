@@ -18,7 +18,7 @@ def signup(username, password, role, profile, security):
         {
             "password": hash_password(password),
             "created_at": str(datetime.now()),
-            "balance": 0,
+            "balance": 500,
             "role": role,
             "profile": profile,
             "security": security,
