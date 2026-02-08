@@ -60,6 +60,31 @@ def pay_by_username(from_user, to_user, amount):
     return True, "Payment successful"
 
 
+def credit_child(parent_user, child_user, amount, method):
+    if amount <= 0:
+        return False, "Amount must be positive"
+    child = get_user(child_user)
+    if not child:
+        return False, "Child not found"
+
+    child_bal = ensure_balance(child_user)
+    new_child = child_bal + amount
+    set_balance(child_user, new_child)
+
+    record_payment(
+        {
+            "from": parent_user,
+            "to": child_user,
+            "amount": round(amount, 2),
+            "timestamp": datetime.utcnow().isoformat(),
+            "type": "parent_credit",
+            "method": method,
+            "note": "parent money credited",
+        }
+    )
+    return True, "Parent money credited"
+
+
 def get_payments_for_user(username):
     data = get_ref("payments").get() or {}
     items = []
@@ -67,4 +92,13 @@ def get_payments_for_user(username):
         if p.get("from") == username or p.get("to") == username:
             items.append(p)
     items.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
+    return items
+
+
+def get_payments_sent(username):
+    data = get_ref("payments").get() or {}
+    items = []
+    for _pid, p in data.items():
+        if p.get("from") == username:
+            items.append(p)
     return items

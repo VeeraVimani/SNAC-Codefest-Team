@@ -9,7 +9,6 @@ def hash_password(password):
 
 
 def signup(username, password, role, profile, security):
-    """Create a new user with role, profile, and security answers."""
     users_ref = get_ref("users")
     if users_ref.child(username).get():
         return False

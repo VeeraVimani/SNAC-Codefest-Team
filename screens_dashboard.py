@@ -1,9 +1,9 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import threading
 import customtkinter as ctk
 from PIL import Image, ImageTk, ImageSequence
-from auth2 import get_user_profile, add_child_to_parent, verify_security_answers, get_security_questions
-from payments import ensure_balance, pay_by_username, get_payments_for_user
+from auth2 import get_user_profile, add_child_to_parent, verify_security_answers, get_security_questions, set_pin, verify_pin
+from payments import ensure_balance, pay_by_username, get_payments_for_user, credit_child, get_payments_sent
 from firebase import get_ref
 from screens_common import clear, add_hover_zoom, image_path
 
@@ -39,6 +39,10 @@ def loading_screen(app, username, role):
 
 def dashboard_screen(app, username, role):
     clear(app)
+    # Require PIN setup before allowing payments
+    user_profile = get_ref("users").child(username).get() or {}
+    if not user_profile.get("pin_hash"):
+        return pin_setup_screen(app, username, role)
     balance = ensure_balance(username, default_balance=500.0)
     if balance == 0:
         from payments import set_balance
@@ -83,10 +87,18 @@ def dashboard_screen(app, username, role):
     chat_btn.pack(pady=8)
     add_hover_zoom(chat_btn, 360, 54)
 
+    report_btn = ctk.CTkButton(actions, text="Spending Report", command=lambda: spending_report_screen(app, username, role), width=360, height=54)
+    report_btn.pack(pady=8)
+    add_hover_zoom(report_btn, 360, 54)
+
     if role == "Parent":
         add_child_btn = ctk.CTkButton(actions, text="Link Child Account", command=lambda: add_child_screen(app, username, role), width=360, height=54)
         add_child_btn.pack(pady=8)
         add_hover_zoom(add_child_btn, 360, 54)
+
+        add_money_btn = ctk.CTkButton(actions, text="Add Money to Child", command=lambda: parent_credit_screen(app, username, role), width=360, height=54)
+        add_money_btn.pack(pady=8)
+        add_hover_zoom(add_money_btn, 360, 54)
 
         profile = get_user_profile(username) or {}
         children = profile.get("children", [])
@@ -174,7 +186,11 @@ def scan_qr(app, on_detected, on_cancel=None):
             return
         if frame_queue:
             img = Image.fromarray(frame_queue[-1])
-            ctk_img = ctk.CTkImage(light_image=img, dark_image=img, size=(420, 315))
+            w = app.winfo_width()
+            h = app.winfo_height()
+            target_w = max(360, int(w * 0.8))
+            target_h = max(270, int(h * 0.45))
+            ctk_img = ctk.CTkImage(light_image=img, dark_image=img, size=(target_w, target_h))
             scan_label.configure(image=ctk_img)
             scan_label._image = ctk_img
         app.after(30, ui_loop)
@@ -202,6 +218,9 @@ def payment_screen(app, from_user, role):
     amount_entry = ctk.CTkEntry(card, placeholder_text="Amount (₹)", font=("Arial", 18), height=48, width=360)
     amount_entry.pack(pady=8)
 
+    pin_entry = ctk.CTkEntry(card, placeholder_text="PIN", font=("Arial", 18), height=48, width=360, show="*")
+    pin_entry.pack(pady=8)
+
     msg = ctk.CTkLabel(card, text="")
     msg.pack(pady=10)
 
@@ -214,6 +233,10 @@ def payment_screen(app, from_user, role):
             return
         if not to_user:
             msg.configure(text="Recipient required ❌")
+            return
+        pin = pin_entry.get().strip()
+        if not verify_pin(from_user, pin):
+            msg.configure(text="Incorrect PIN ❌")
             return
         ok, text = pay_by_username(from_user, to_user, amount)
         msg.configure(text=("✅ " + text) if ok else ("❌ " + text))
@@ -290,6 +313,59 @@ def history_screen(app, username, role):
     ctk.CTkButton(app, text="Back", command=lambda: dashboard_screen(app, username, role), width=200, height=40).pack(pady=6)
 
 
+def spending_report_screen(app, username, role):
+    clear(app)
+    ctk.CTkLabel(app, text="Spending Report", font=("Arial", 28, "bold")).pack(pady=20)
+
+    report_box = ctk.CTkTextbox(app, width=560, height=260)
+    report_box.pack(pady=10)
+    report_box.configure(state="disabled")
+
+    period_menu = ctk.CTkOptionMenu(app, values=["Today", "This Week", "This Year"])
+    period_menu.set("This Week")
+    period_menu.pack(pady=6)
+
+    def compute_range(label):
+        now = datetime.utcnow()
+        if label == "Today":
+            start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        elif label == "This Year":
+            start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+        else:
+            # This Week (Monday as start)
+            start = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+        return start, now
+
+    def refresh():
+        label = period_menu.get()
+        start, end = compute_range(label)
+        payments = get_payments_sent(username)
+        total = 0.0
+        lines = []
+        for p in payments:
+            ts_str = p.get("timestamp", "")
+            try:
+                ts = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+            except Exception:
+                continue
+            if ts < start or ts > end:
+                continue
+            amt = float(p.get("amount", 0))
+            total += amt
+            lines.append(f"{ts_str} | to {p.get('to','')} | ₹{amt}")
+
+        report_box.configure(state="normal")
+        report_box.delete("1.0", "end")
+        report_box.insert("end", f"Total spent ({label}): ₹{total:.2f}\\n\\n")
+        report_box.insert("end", "\n".join(lines) if lines else "No transactions")
+        report_box.configure(state="disabled")
+
+    period_menu.configure(command=lambda _v=None: refresh())
+    refresh()
+
+    ctk.CTkButton(app, text="Back", command=lambda: dashboard_screen(app, username, role), width=200, height=40).pack(pady=6)
+
+
 def group_chat_screen(app, username, role):
     clear(app)
     ctk.CTkLabel(app, text="Group Chat", font=("Arial", 28, "bold")).pack(pady=20)
@@ -342,6 +418,50 @@ def group_chat_screen(app, username, role):
     ctk.CTkButton(app, text="Back", command=lambda: dashboard_screen(app, username, role), width=200, height=40).pack(pady=6)
 
     render()
+
+
+def parent_credit_screen(app, parent_username, role):
+    clear(app)
+    ctk.CTkLabel(app, text="Add Money to Child", font=("Arial", 28, "bold")).pack(pady=20)
+
+    profile = get_user_profile(parent_username) or {}
+    children = profile.get("children", [])
+    child_options = children if children else ["(no linked children)"]
+    child_menu = ctk.CTkOptionMenu(app, values=child_options)
+    child_menu.set(child_options[0])
+    child_menu.pack(pady=6)
+
+    method_menu = ctk.CTkOptionMenu(app, values=["UPI", "Card", "Debit Card", "Net Banking"])
+    method_menu.set("UPI")
+    method_menu.pack(pady=6)
+
+    amount_entry = ctk.CTkEntry(app, placeholder_text="Amount", font=("Arial", 18), height=48, width=280)
+    amount_entry.pack(pady=6)
+
+    msg = ctk.CTkLabel(app, text="")
+    msg.pack(pady=6)
+
+    def do_credit():
+        child = child_menu.get()
+        if child == "(no linked children)":
+            msg.configure(text="No linked children ❌")
+            return
+        try:
+            amt = float(amount_entry.get().strip())
+        except Exception:
+            msg.configure(text="Enter valid amount ❌")
+            return
+        msg.configure(text="Processing...")
+        app.after(800, lambda: _finish_credit(child, amt))
+
+    def _finish_credit(child, amt):
+        ok, text = credit_child(parent_username, child, amt, method_menu.get())
+        msg.configure(text=("✅ " + text) if ok else ("❌ " + text))
+        if ok:
+            app.after(700, lambda: dashboard_screen(app, parent_username, role))
+
+    ctk.CTkButton(app, text="Pay", command=do_credit, width=220, height=50).pack(pady=8)
+    ctk.CTkButton(app, text="Back", command=lambda: dashboard_screen(app, parent_username, role), width=200, height=40).pack(pady=6)
 
 
 def add_child_screen(app, parent_username, role):
@@ -433,8 +553,8 @@ def group_wallets_screen(app, username, role):
     list_card.pack(pady=10)
     list_card.pack_propagate(False)
 
-    list_box = ctk.CTkTextbox(list_card, width=520, height=240)
-    list_box.pack(pady=18)
+    list_box = ctk.CTkTextbox(list_card, width=520, height=200)
+    list_box.pack(pady=(14, 6))
     list_box.configure(state="disabled")
 
     groups = get_ref("group_wallets").get() or {}
@@ -452,7 +572,43 @@ def group_wallets_screen(app, username, role):
         list_box.insert("end", "No group wallets yet")
     list_box.configure(state="disabled")
 
-    ctk.CTkButton(app, text="Create Group Wallet", command=lambda: create_group_wallet_screen(app, username, role), width=280, height=50).pack(pady=8)
+    add_card = ctk.CTkFrame(app, width=560, height=150, corner_radius=16)
+    add_card.pack(pady=10)
+    add_card.pack_propagate(False)
+    ctk.CTkLabel(add_card, text="Quick Add to Group", font=("Arial", 14, "bold")).pack(pady=(10, 6))
+    gid_entry = ctk.CTkEntry(add_card, placeholder_text="Group ID", font=("Arial", 14), height=40, width=200)
+    gid_entry.pack(pady=4)
+    amt_entry = ctk.CTkEntry(add_card, placeholder_text="Amount", font=("Arial", 14), height=40, width=200)
+    amt_entry.pack(pady=4)
+    add_msg = ctk.CTkLabel(add_card, text="")
+    add_msg.pack(pady=2)
+
+    def quick_add():
+        gid = gid_entry.get().strip()
+        try:
+            amt = float(amt_entry.get().strip())
+        except Exception:
+            add_msg.configure(text="Enter valid amount ❌")
+            return
+        if not gid:
+            add_msg.configure(text="Enter group id ❌")
+            return
+        g = get_ref("group_wallets").child(gid).get()
+        if not g:
+            add_msg.configure(text="Group not found ❌")
+            return
+        members = g.get("members", {}) or {}
+        if not members.get(username):
+            add_msg.configure(text="Not a member ❌")
+            return
+        bal = float(g.get("balance", 0))
+        get_ref("group_wallets").child(gid).child("balance").set(round(bal + amt, 2))
+        add_msg.configure(text="Added ✅")
+        group_wallets_screen(app, username, role)
+
+    ctk.CTkButton(add_card, text="Add Money", command=quick_add, width=180, height=36).pack(pady=4)
+
+    ctk.CTkButton(app, text="Create Group Wallet", command=lambda: create_group_wallet_screen(app, username, role), width=280, height=50).pack(pady=6)
     ctk.CTkButton(app, text="Open Group by ID", command=lambda: open_group_by_id_screen(app, username, role), width=280, height=50).pack(pady=6)
     ctk.CTkButton(app, text="Back", command=lambda: dashboard_screen(app, username, role), width=200, height=40).pack(pady=6)
 
@@ -539,7 +695,64 @@ def notifications_screen(app, username, role):
             ctk.CTkButton(row, text="Accept", command=accept, width=90, height=32).pack(side="right", padx=6)
             ctk.CTkButton(row, text="Decline", command=decline, width=90, height=32).pack(side="right", padx=6)
 
+    # Group wallet payment requests
+    group_requests = get_ref("group_pay_requests").get() or {}
+    for gid, reqs in group_requests.items():
+        group = get_ref("group_wallets").child(gid).get() or {}
+        members = group.get("members", {}) or {}
+        if not members.get(username):
+            continue
+        for rid, req in (reqs or {}).items():
+            if req.get("status") != "pending":
+                continue
+            row = ctk.CTkFrame(app, corner_radius=12)
+            row.pack(pady=6, padx=20, fill="x")
+            text = f"{req.get('from')} wants to add ₹{req.get('amount')} to {group.get('name','Group')}"
+            ctk.CTkLabel(row, text=text, font=("Arial", 14)).pack(side="left", padx=10, pady=8)
+
+            def accept_pay(gid=gid, rid=rid, req=req):
+                bal = float(group.get("balance", 0))
+                new_bal = bal + float(req.get("amount", 0))
+                get_ref("group_wallets").child(gid).child("balance").set(round(new_bal, 2))
+                get_ref("group_pay_requests").child(gid).child(rid).child("status").set("approved")
+                notifications_screen(app, username, role)
+
+            def decline_pay(gid=gid, rid=rid):
+                get_ref("group_pay_requests").child(gid).child(rid).child("status").set("declined")
+                notifications_screen(app, username, role)
+
+            ctk.CTkButton(row, text="Accept", command=accept_pay, width=90, height=32).pack(side="right", padx=6)
+            ctk.CTkButton(row, text="Decline", command=decline_pay, width=90, height=32).pack(side="right", padx=6)
+
     ctk.CTkButton(app, text="Back", command=lambda: dashboard_screen(app, username, role), width=200, height=40).pack(pady=10)
+
+
+def pin_setup_screen(app, username, role):
+    clear(app)
+    ctk.CTkLabel(app, text="Set Payment PIN", font=("Arial", 28, "bold")).pack(pady=20)
+    ctk.CTkLabel(app, text="Create a PIN to authorize payments", font=("Arial", 13)).pack(pady=(0, 10))
+
+    pin_entry = ctk.CTkEntry(app, placeholder_text="Enter PIN (4-6 digits)", font=("Arial", 18), height=48, width=280, show="*")
+    pin_entry.pack(pady=6)
+    pin_confirm = ctk.CTkEntry(app, placeholder_text="Confirm PIN", font=("Arial", 18), height=48, width=280, show="*")
+    pin_confirm.pack(pady=6)
+    msg = ctk.CTkLabel(app, text="")
+    msg.pack(pady=6)
+
+    def do_set():
+        p1 = pin_entry.get().strip()
+        p2 = pin_confirm.get().strip()
+        if not (4 <= len(p1) <= 6) or not p1.isdigit():
+            msg.configure(text="PIN must be 4-6 digits ❌")
+            return
+        if p1 != p2:
+            msg.configure(text="PINs do not match ❌")
+            return
+        set_pin(username, p1)
+        msg.configure(text="PIN set ✅")
+        app.after(700, lambda: dashboard_screen(app, username, role))
+
+    ctk.CTkButton(app, text="Set PIN", command=do_set, width=200, height=44).pack(pady=8)
 
 
 def group_wallet_detail_screen(app, username, role, group_id):
@@ -575,10 +788,16 @@ def group_wallet_detail_screen(app, username, role, group_id):
         except Exception:
             msg.configure(text="Enter a valid amount ❌")
             return
-        new_bal = balance + amt
-        get_ref("group_wallets").child(group_id).child("balance").set(round(new_bal, 2))
-        msg.configure(text="Added ✅")
-        group_wallet_detail_screen(app, username, role, group_id)
+        # Create a group pay request instead of auto-adding
+        get_ref("group_pay_requests").child(group_id).push(
+            {
+                "from": username,
+                "amount": round(amt, 2),
+                "status": "pending",
+                "ts": datetime.utcnow().isoformat(),
+            }
+        )
+        msg.configure(text="Request sent ✅")
 
     ctk.CTkButton(app, text="Add Money", command=add_money, width=220, height=44).pack(pady=8)
     ctk.CTkButton(app, text="Back", command=lambda: group_wallets_screen(app, username, role), width=200, height=40).pack(pady=6)
